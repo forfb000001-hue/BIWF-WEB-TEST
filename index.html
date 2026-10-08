@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বালাখুর দরিদ্র কল্যাণ তহবিল</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="chat.css">
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* ===== নতুন নেভিগেশন বার (স্টাইল - style.css এর সাথে কনফ্লিক্ট এড়াতে আলাদা রাখা হলো) ===== */
+        * { font-family: 'Hind Siliguri', sans-serif; box-sizing: border-box; }
+        body { margin: 0; background: #f2f4f7; }
+        header.top-header {
+            background: #1e6bff;
+            color: #fff;
+            padding: 6px 10px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        header.top-header h1 {
+            margin: 0;
+            font-size: 27px;
+            font-weight: 700;
+        }
+        .header-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .header-logo {
+            height: 75px;
+            width: 75px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #fff;
+            flex-shrink: 0;
+        }
+        nav.navbar {
+            background: #ffffff;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 14px 10px;
+            border-bottom: 1px solid #e2e6ec;
+        }
+        nav.navbar button {
+            background: #1e6bff;
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s, transform 0.15s;
+        }
+        nav.navbar button:hover {
+            background: #1554cc;
+            transform: translateY(-1px);
+        }
+        nav.navbar button.active {
+            background: #0c3fa0;
+        }
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; text-align: center; }
+        .edit-btn, .delete-btn {
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 2px;
+            color: #fff;
+        }
+        .edit-btn { background: #f5a623; }
+        .edit-btn:hover { background: #d98c0f; }
+        .delete-btn { background: #e53935; }
+        .delete-btn:hover { background: #c62828; }
+
+        /* ===== লগইন স্ক্রিন ===== */
+        #loginScreen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                linear-gradient(135deg, rgba(30,107,255,0.92), rgba(12,63,160,0.92)),
+                url('logo.png');
+            background-size: cover, 55%;
+            background-position: center, center;
+            background-repeat: no-repeat, no-repeat;
+            padding: 20px;
+        }
+        .login-card {
+            background: #fff;
+            padding: 36px 30px;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+        .login-card h2 {
+            margin-top: 0;
+            color: #1e6bff;
+        }
+        .login-card input {
+            width: 100%;
+            padding: 12px;
+            margin: 14px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .login-card button {
+            width: 100%;
+            padding: 12px;
+            background: #1e6bff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .login-card button:hover { background: #1554cc; }
+        #loginError {
+            color: #e53935;
+            font-size: 14px;
+            min-height: 20px;
+            margin-top: 4px;
+        }
+        #logoutBtn {
+            background: #e53935 !important;
+        }
+        #logoutBtn:hover { background: #c62828 !important; }
+
+        /* ===== সার্চ বক্স ===== */
+        .search-box {
+            width: 100%;
+            max-width: 350px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        /* ===== চার্ট ===== */
+        .chart-wrap {
+            background: #fff;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        /* ===== সদস্য প্রোফাইল মডাল ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 520px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-box h2 { margin-top: 0; text-align: center; }
+        .modal-close {
+            float: right;
+            background: #e53935;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .view-btn {
+            background: #2e9e5b;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .view-btn:hover { background: #237945; }
+
+        /* ===== WhatsApp রিমাইন্ডার তালিকা ===== */
+        .due-reminder-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 4px;
+            border-bottom: 1px solid #eee;
+        }
+        .due-reminder-row:last-child { border-bottom: none; }
+        body.dark-mode .due-reminder-row { border-color: #2a3245; }
+
+        /* ===== Undo টোস্ট ===== */
+        .undo-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #222;
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            z-index: 1200;
+            font-size: 14px;
+        }
+        .undo-toast button {
+            background: #1e6bff;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .undo-toast button:hover { background: #1554cc; }
+
+        /* ===== খরচের ক্যাটাগরি ব্যবস্থাপনা ===== */
+        .category-manage {
+            background: #fff;
+            border-radius: 10px;
+            padding: 14px;
+            margin: 14px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .category-manage h4 { margin: 0 0 10px 0; }
+        .category-add-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .category-add-row input {
+            flex: 1;
+            min-width: 160px;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        .category-add-row button {
+            background: #2e9e5b;
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .category-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef2ff;
+            color: #1e3a8a;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            margin: 3px;
+        }
+        .category-chip button {
+            background: none;
+            border: none;
+            color: #e53935;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        /* ===== এক্সপোর্ট বাটন ===== */
+        .export-btn {
+            background: #0c8a63;
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .export-btn:hover { background: #096a4c; }
+
+        /* ===== সর্টেবল টেবিল হেডার ===== */
+        .sortable-th { cursor: pointer; user-select: none; }
+        .sortable-th:hover { background: #e9edf5; }
+
+        /* ===== Viewer রোলে অ্যাডমিন-অনলি জিনিস লুকানো ===== */
+        .role-viewer .admin-only,
+        .role-viewer .edit-btn,
+        .role-viewer .delete-btn {
+            display: none !important;
+        }
+
+        /* ===== ডার্ক মোড টগল বাটন ===== */
+        #darkModeToggle {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        #darkModeToggle:hover { background: rgba(255,255,255,0.3); }
+
+        /* ===== ডার্ক মোড ===== */
+        body.dark-mode { background: #12151f; color: #e8eaf0; }
+        body.dark-mode nav.navbar { background: #1b2130; border-color: #2a3245; }
+        body.dark-mode .container,
+        body.dark-mode .chart-wrap,
+        body.dark-mode .modal-box,
+        body.dark-mode .login-card,
+        body.dark-mode .category-manage {
+            background: #1b2130 !important;
+            color: #e8eaf0 !important;
+        }
+        body.dark-mode h2 { color: #4fd1c5; }
+        body.dark-mode table { background: #1b2130; }
+        body.dark-mode table th, body.dark-mode td { border-color: #2a3245; }
+        body.dark-mode table td { color: #e8eaf0; }
+        body.dark-mode table tr:nth-child(even) { background: #202737; }
+        /* আয়/ব্যয়/ব্যালেন্স কার্ড নিজেদের রঙেই রাখা হলো, ডার্ক মোডে বদলানো হয়নি */
+        body.dark-mode input, body.dark-mode select {
+            background: #0f1420 !important;
+            color: #e8eaf0 !important;
+            border-color: #2a3245 !important;
+        }
+        body.dark-mode .search-box { background: #0f1420; color: #e8eaf0; border-color: #2a3245; }
+        body.dark-mode .sortable-th:hover { background: #262e42; }
+
+        /* ===== সদস্যের নাম কলাম লেফ্ট এলাইন ===== */
+        table:has(#donationTable) th:first-child,
+        #donationTable td:first-child,
+        table:has(#memberTable) th:first-child,
+        #memberTable td:first-child {
+            text-align: left !important;
+        }
+    
+        /* ===== আমার অনুদান ===== */
+        .my-don-head { font-size:18px; font-weight:600; margin:6px 0 14px; color:#00695c; }
+        .my-don-head small { font-weight:400; color:#777; margin-left:6px; }
+        .my-don-tools { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:14px; }
+        .my-don-tools button { width:auto; }
+        .my-don-msg { background:#fff8e1; border:1px solid #ffe08a; border-radius:10px; padding:18px; text-align:center; color:#6d5300; line-height:1.7; }
+        body.dark-mode .my-don-head { color:#4fd1c5; }
+        body.dark-mode .my-don-msg { background:#2a2616; border-color:#5c4c14; color:#f0d98a; }
+
+        /* ===== ভিউয়ারের অনুমতি বাছাই ===== */
+        .perm-box { background:#f1f8f6; border:1px solid #cfe5df; border-radius:10px; padding:14px; margin:12px 0; }
+        .perm-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; margin:10px 0; }
+        .perm-item { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #d9e6e2; border-radius:8px; padding:8px 10px; cursor:pointer; }
+        .perm-item input { width:18px; height:18px; padding:0; }
+        .perm-actions { display:flex; flex-wrap:wrap; gap:8px; }
+        .perm-actions button { width:auto; padding:8px 14px; font-size:14px; }
+        body.dark-mode .perm-box { background:#1b2130; border-color:#2a3245; }
+        body.dark-mode .perm-item { background:#232b3e; border-color:#2a3245; color:#e8eaf0; }
+    </style>
+</head>
+<body>
+
+<script>
+    // ===== ডার্ক মোড ক্লাস ও Chart.js থিম সেটআপ (script.js রান হওয়ার আগেই, যাতে চার্ট প্রথমবারেই সঠিক রঙে আঁকা হয়) =====
+    (function () {
+        var isDark = localStorage.getItem("darkMode") === "1";
+        if (isDark) document.body.classList.add("dark-mode");
+
+        window.applyChartTheme = function (dark) {
+            if (typeof Chart === "undefined") return;
+            Chart.defaults.color = dark ? "#c8cede" : "#333333";
+            Chart.defaults.borderColor = dark ? "#2a3245" : "#dddddd";
+        };
+        window.applyChartTheme(isDark);
+    })();
+</script>
+
+<!-- ===== লগইন স্ক্রিন ===== -->
+<div id="loginScreen" style="display:none;">
+    <div class="login-card">
+        <h2>🔒 লগইন করুন</h2>
+        <p>বালাখুর দরিদ্র কল্যাণ তহবিল</p>
+        <input type="tel" id="loginPhone" placeholder="মোবাইল নম্বর (01XXXXXXXXX)" autocomplete="username" onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()">
+        <input type="password" id="loginPassword" placeholder="পাসওয়ার্ড" autocomplete="current-password" onkeydown="if(event.key==='Enter') checkLogin()">
+        <div id="loginError"></div>
+        <button id="loginBtn" onclick="checkLogin()">প্রবেশ করুন</button>
+        <p style="font-size:12px; color:#888; margin-top:14px;">আপনার মোবাইল নম্বর ও অ্যাডমিনের দেওয়া পাসওয়ার্ড দিয়ে প্রবেশ করুন।</p>
+    </div>
+</div>
+
+<!-- ===== মূল অ্যাপ (লগইনের আগে লুকানো থাকবে) ===== -->
+<div id="appContent" style="display:none;">
+
+<header class="top-header">
+    <img src="logo.png" alt="BIWF Logo" class="header-logo">
+    <div class="header-text">
+        <h1>বালাখুর দরিদ্র কল্যাণ তহবিল</h1>
+        <button id="darkModeToggle" onclick="toggleDarkMode()" aria-label="ডার্ক মোড চালু বা বন্ধ করুন">🌙 ডার্ক মোড</button>
+    </div>
+</header>
+
+<nav class="navbar">
+    <button class="nav-btn active" data-target="dashboardSection" onclick="showSection('dashboardSection', this)">🏠 ড্যাশবোর্ড</button>
+    <button class="nav-btn" data-target="donationSection" onclick="showSection('donationSection', this)">💰 অনুদান</button>
+    <button class="nav-btn" data-target="myDonationSection" onclick="showSection('myDonationSection', this)">🧾 আমার অনুদান</button>
+    <button class="nav-btn" data-target="expenseSection" onclick="showSection('expenseSection', this)">🌾 খরচ</button>
+    <button class="nav-btn" data-target="memberSection" onclick="showSection('memberSection', this)">👤 সদস্য</button>
+    <button class="nav-btn" data-target="reportSection" onclick="showSection('reportSection', this)">📊 রিপোর্ট</button>
+    <button class="nav-btn" data-target="backupSection" onclick="showSection('backupSection', this)">⚙️ Backup</button>
+    <button class="nav-btn admin-only" data-target="logSection" onclick="showSection('logSection', this)">📝 লগ</button>
+    <button class="nav-btn admin-only" data-target="usersSection" onclick="showSection('usersSection', this)">👥 ইউজার</button>
+    <button class="nav-btn" data-target="chatSection" onclick="showSection('chatSection', this)">💬 চ্যাট <span id="chatBadge" class="chat-badge"></span></button>
+    <button onclick="changeMyPassword()">🔑 পাসওয়ার্ড বদলান</button>
+    <button id="logoutBtn" onclick="logout()">🚪 লগআউট</button>
+</nav>
+
+<div class="container">
+
+    <div id="noAccessMsg" style="display:none; text-align:center; padding:40px 12px; color:#777;">
+        আপনাকে এখনো কোনো পাতা দেখার অনুমতি দেওয়া হয়নি। অ্যাডমিনের সাথে যোগাযোগ করুন।
+    </div>
+
+    <!-- ===== ড্যাশবোর্ড ===== -->
+    <div id="dashboardSection" class="tab-section active">
+        <div class="cards">
+            <div class="card income">
+                <h3>মোট অনুদান</h3>
+                <h2 id="totalIncome">০ টাকা</h2>
+            </div>
+            <div class="card expense">
+                <h3>মোট ব্যয়</h3>
+                <h2 id="totalExpense">০ টাকা</h2>
+            </div>
+            <div class="card balance">
+                <h3>বর্তমান ব্যালেন্স</h3>
+                <h2 id="balance">০ টাকা</h2>
+            </div>
+        </div>
+
+        <div class="chart-wrap">
+            <h3 style="text-align:center;">মাস অনুযায়ী আয়-ব্যয়</h3>
+            <canvas id="incomeExpenseChart" height="100"></canvas>
+        </div>
+
+        <div class="chart-wrap">
+            <h3 style="text-align:center;">খরচের খাতভিত্তিক বিভাজন</h3>
+            <div style="max-width:280px; margin:0 auto;">
+                <canvas id="expensePieChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-wrap">
+            <h3 style="text-align:center;">🏆 টপ ৫ দাতা</h3>
+            <div id="topDonorsList"></div>
+        </div>
+    </div>
+
+    <!-- ===== অনুদান ===== -->
+    <div id="donationSection" class="tab-section">
+        <h2>মাসিক / বাৎসরিক অনুদান</h2>
+        <div class="form admin-only">
+            <select id="donationMember"></select>
+            <select id="donationType">
+                <option value="Monthly">মাসিক</option>
+                <option value="Yearly">বাৎসরিক</option>
+            </select>
+            <input type="month" id="donationMonth">
+            <input type="number" id="donationAmount" placeholder="টাকার পরিমাণ">
+            <button id="donationSubmitBtn" onclick="addDonation()">সংরক্ষণ</button>
+        </div>
+        <hr>
+        <h2>অনুদানের তালিকা</h2>
+        <button class="export-btn" onclick="exportDonationsExcel()">📊 Excel এক্সপোর্ট</button>
+        <input type="text" id="donationSearch" class="search-box" placeholder="🔍 নাম বা মাস দিয়ে খুঁজুন" oninput="renderDonations()">
+        <table class="mobile-cards">
+            <thead>
+            <tr>
+                <th>সদস্যের নাম</th>
+                <th>ধরন</th>
+                <th class="sortable-th" data-table="donation" data-key="month" onclick="sortDonations('month')">মাস</th>
+                <th class="sortable-th" data-table="donation" data-key="amount" onclick="sortDonations('amount')">টাকা</th>
+                <th>কার্যক্রম</th>
+            </tr>
+            </thead>
+            <tbody id="donationTable"></tbody>
+        </table>
+    </div>
+
+    <!-- ===== খরচ ===== -->
+    <div id="expenseSection" class="tab-section">
+        <h2>খরচ যোগ করুন</h2>
+        <div class="form admin-only">
+            <select id="expenseCategory"></select>
+            <input type="date" id="expenseDate">
+            <input type="number" id="expenseAmount" placeholder="টাকার পরিমাণ">
+            <input type="text" id="expenseNote" placeholder="মন্তব্য">
+            <button id="expenseSubmitBtn" onclick="addExpense()">খরচ সংরক্ষণ</button>
+        </div>
+
+        <div class="category-manage admin-only">
+            <h4>⚙️ খরচের ক্যাটাগরি ব্যবস্থাপনা</h4>
+            <div class="category-add-row">
+                <input type="text" id="newCategoryInput" placeholder="নতুন ক্যাটাগরির নাম">
+                <button onclick="addExpenseCategory()">➕ যোগ করুন</button>
+            </div>
+            <div id="categoryManageList"></div>
+        </div>
+
+        <hr>
+        <h2>খরচের হিসাব</h2>
+        <button class="export-btn" onclick="exportExpensesExcel()">📊 Excel এক্সপোর্ট</button>
+        <input type="text" id="expenseSearch" class="search-box" placeholder="🔍 খাত বা মন্তব্য দিয়ে খুঁজুন" oninput="renderExpenses()">
+        <table class="mobile-cards">
+            <thead>
+            <tr>
+                <th class="sortable-th" data-table="expense" data-key="date" onclick="sortExpenses('date')">তারিখ</th>
+                <th>খাত</th>
+                <th class="sortable-th" data-table="expense" data-key="amount" onclick="sortExpenses('amount')">পরিমাণ</th>
+                <th>মন্তব্য</th>
+                <th>কার্যক্রম</th>
+            </tr>
+            </thead>
+            <tbody id="expenseTable"></tbody>
+        </table>
+    </div>
+
+    <!-- ===== সদস্য ===== -->
+    <div id="memberSection" class="tab-section">
+        <h2>নতুন সদস্য যোগ করুন</h2>
+        <div class="form admin-only">
+            <input type="text" id="memberName" placeholder="সদস্যের নাম">
+            <input type="text" id="memberPhone" placeholder="মোবাইল">
+            <button id="memberSubmitBtn" onclick="addMember()">যোগ করুন</button>
+        </div>
+        <hr>
+        <div class="admin-only">
+        <h2>Excel / CSV থেকে সদস্য আমদানি করুন</h2>
+        <p style="font-size:14px; color:#555;">
+            ফাইলের ১ম কলামে <b>নাম</b>, ২য় কলামে <b>মোবাইল</b> নম্বর দিন। ১ম সারি হেডার (নাম, মোবাইল) হলে সেটা এমনিতেই বাদ যাবে। একই নাম বা মোবাইল থাকলে সেই সারি বাদ দিয়ে সতর্ক করা হবে।
+        </p>
+        <div class="form">
+            <input type="file" id="memberExcelFile" accept=".xlsx,.xls,.csv">
+            <button onclick="importMembersFromExcel()">📥 আমদানি করুন</button>
+        </div>
+        </div>
+        <hr>
+        <h2>সদস্য তালিকা</h2>
+        <button class="export-btn" onclick="exportMembersExcel()">📊 Excel এক্সপোর্ট</button>
+        <input type="text" id="memberSearch" class="search-box" placeholder="🔍 নাম বা মোবাইল দিয়ে খুঁজুন" oninput="renderMembers()">
+        <table class="mobile-cards">
+            <thead>
+            <tr>
+                <th>নাম</th>
+                <th>মোবাইল</th>
+                <th class="sortable-th" data-table="member" data-key="total" onclick="sortMembers('total')">মোট অনুদান</th>
+                <th>কার্যক্রম</th>
+            </tr>
+            </thead>
+            <tbody id="memberTable"></tbody>
+        </table>
+    </div>
+
+    <!-- ===== রিপোর্ট ===== -->
+    <div id="reportSection" class="tab-section">
+        <h2>রিপোর্ট</h2>
+        <div class="form">
+            <select id="reportType">
+                <option value="month">মাসিক রিপোর্ট</option>
+                <option value="year">বাৎসরিক রিপোর্ট</option>
+            </select>
+            <input type="month" id="reportMonth">
+            <input type="number" id="reportYear" placeholder="যেমন: 2026">
+        </div>
+
+
+        <button onclick="printReport()">🖨 Print Report</button>
+        <button onclick="downloadReportPDF()">📄 PDF ডাউনলোড</button>
+        <button onclick="printDueMemberReport()">যারা অনুদান দেয়নি - রিপোর্ট</button>
+        <button onclick="openDueMemberReminder()">📱 WhatsApp রিমাইন্ডার পাঠান</button>
+
+        <hr>
+        <h2>কাস্টম তারিখ-রেঞ্জ রিপোর্ট</h2>
+        <div class="form">
+            <input type="date" id="customFromDate">
+            <input type="date" id="customToDate">
+            <button onclick="printCustomRangeReport()">🖨 কাস্টম রিপোর্ট প্রিন্ট</button>
+        </div>
+
+        <hr>
+        <h2>দাতাদের বিশ্লেষণ</h2>
+        <div class="form">
+            <button onclick="printDonorRegularityReport()">📋 নিয়মিত/অনিয়মিত দাতাদের তালিকা</button>
+            <button onclick="printTopDonorsReport()">🏆 টপ ডোনার তালিকা</button>
+        </div>
+    </div>
+
+    <!-- ===== Backup ===== -->
+    <div id="backupSection" class="tab-section">
+        <h2>⚙️ Backup</h2>
+        <div class="form">
+            <button onclick="exportData()">⬇️ Backup ডাউনলোড করুন</button>
+        </div>
+        <hr>
+        <div class="admin-only">
+        <h2>Restore</h2>
+        <div class="form">
+            <input type="file" id="restoreFile" accept=".json">
+            <button onclick="importData()">⬆️ Restore করুন</button>
+        </div>
+        </div>
+    </div>
+
+    <!-- ===== অ্যাক্টিভিটি লগ ===== -->
+    <div id="logSection" class="tab-section admin-only">
+        <h2>📝 অ্যাক্টিভিটি লগ</h2>
+        <p style="font-size:13px; color:#666;">সদস্য, অনুদান ও খরচ সংক্রান্ত সব যোগ, এডিট ও ডিলিট কার্যক্রমের ইতিহাস (সর্বশেষ ৫০০টি এন্ট্রি)।</p>
+        <button class="delete-btn" onclick="clearActivityLog()">🗑️ লগ পরিষ্কার করুন</button>
+        <table class="mobile-cards">
+            <thead>
+            <tr>
+                <th>সময়</th>
+                <th>রোল</th>
+                <th>কার্যক্রম</th>
+                <th>বিস্তারিত</th>
+            </tr>
+            </thead>
+            <tbody id="activityLogTable"></tbody>
+        </table>
+    </div>
+
+    <!-- ===== ইউজার ব্যবস্থাপনা (অ্যাডমিন) ===== -->
+    <div id="usersSection" class="tab-section admin-only">
+        <h2>👥 লগইন ইউজার</h2>
+        <p style="font-size:13px; color:#666;">সদস্যের মোবাইল নম্বর ও একটি পাসওয়ার্ড দিয়ে লগইন অ্যাকাউন্ট খুলুন। ভিউয়ারের জন্য কোন কোন ট্যাব দেখা যাবে তা এখানেই বেছে দিন, পরে তালিকার "👁️ কী দেখবে" বাটনে বদলাতে পারবেন। সদস্য ওই নম্বর ও পাসওয়ার্ড দিয়েই ঢুকবে, পরে নিজে "পাসওয়ার্ড বদলান" বাটনে বদলে নিতে পারবে।</p>
+        <div class="form">
+            <select id="userMemberPick" onchange="userPickMember()"></select>
+            <input type="text" id="userName" placeholder="নাম">
+            <input type="tel" id="userPhone" placeholder="মোবাইল নম্বর">
+            <input type="text" id="userPassword" placeholder="প্রথম পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)" autocomplete="off">
+            <select id="userRole" onchange="userRoleChanged()">
+                <option value="viewer">ভিউয়ার (শুধু দেখতে পারবে)</option>
+                <option value="admin">অ্যাডমিন (সব করতে পারবে)</option>
+            </select>
+            <div id="userTabsWrap" class="perm-box" style="grid-column:1/-1;">
+                <strong>👁️ এই ভিউয়ার কোন কোন ট্যাব দেখতে পারবে:</strong>
+                <div class="perm-grid" id="userTabsNew"></div>
+                <div class="perm-actions">
+                    <button type="button" onclick="userPermAll('permNew', true)">সব বাছুন</button>
+                    <button type="button" onclick="userPermAll('permNew', false)">সব বাদ দিন</button>
+                </div>
+            </div>
+            <button id="userCreateBtn" onclick="userCreate()">অ্যাকাউন্ট তৈরি করুন</button>
+        </div>
+        <hr>
+        <h2>ইউজার তালিকা</h2>
+        <table class="mobile-cards">
+            <thead>
+            <tr><th>নাম</th><th>মোবাইল</th><th>রোল</th><th>অবস্থা</th><th>কার্যক্রম</th></tr>
+            </thead>
+            <tbody id="userTable"></tbody>
+        </table>
+        <div id="userPermPanel" class="perm-box" style="display:none;"></div>
+    </div>
+
+    <!-- ===== আমার অনুদান (লগইন করা সদস্যের নিজের হিস্ট্রি) ===== -->
+    <div id="myDonationSection" class="tab-section">
+        <h2>🧾 আমার অনুদানের হিস্ট্রি</h2>
+        <div id="myDonRoot"></div>
+    </div>
+
+    <!-- ===== গ্রুপ চ্যাট ===== -->
+    <div id="chatSection" class="tab-section">
+        <h2>💬 গ্রুপ চ্যাট</h2>
+        <div id="chatRoot"></div>
+    </div>
+
+</div>
+
+<!-- ===== সদস্য প্রোফাইল মডাল ===== -->
+<div class="modal-overlay" id="memberProfileModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeMemberProfile()">✕ বন্ধ করুন</button>
+        <h2 id="profileMemberName">সদস্যের নাম</h2>
+        <p id="profileMemberPhone" style="text-align:center; color:#555;"></p>
+        <h3 id="profileMemberTotal" style="text-align:center;"></h3>
+        <div style="text-align:center; margin-bottom:14px;">
+            <button class="view-btn" onclick="printMemberYearlySummary(currentProfileMemberId)">📅 বাৎসরিক সামারি প্রিন্ট</button>
+        </div>
+        <table class="mobile-cards">
+            <thead>
+            <tr>
+                <th>ধরন</th>
+                <th>মাস</th>
+                <th>টাকা</th>
+            </tr>
+            </thead>
+            <tbody id="profileDonationTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===== WhatsApp রিমাইন্ডার মডাল (যারা অনুদান দেয়নি) ===== -->
+<div class="modal-overlay" id="dueReminderModal">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeDueReminderModal()">✕ বন্ধ করুন</button>
+        <h2>📱 WhatsApp রিমাইন্ডার — <span id="dueReminderMonthTitle"></span></h2>
+        <p style="text-align:center; color:#555; font-size:13px;">নামের পাশের বাটনে চাপলে WhatsApp এ মেসেজ আগে থেকে লেখা অবস্থায় খুলবে, শুধু "Send" চাপতে হবে।</p>
+        <div id="dueReminderList" style="margin-top:14px;"></div>
+    </div>
+</div>
+
+<!-- ===== PDF তৈরির জন্য অদৃশ্য কন্টেইনার ===== -->
+<div id="pdfReportContainer" style="position:fixed; left:-99999px; top:0; width:800px; background:#fff;"></div>
+
+</div><!-- #appContent শেষ -->
+
+<script src="script.js"></script>
+<script>
+    // ===== ডার্ক মোড টগল =====
+    function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+        const isDark = document.body.classList.contains("dark-mode");
+        localStorage.setItem("darkMode", isDark ? "1" : "0");
+
+        // চার্টের রঙ (লিজেন্ড টেক্সট ইত্যাদি) নতুন থিম অনুযায়ী আপডেট করে পুনরায় আঁকা হচ্ছে
+        if (typeof applyChartTheme === "function") applyChartTheme(isDark);
+        if (typeof updateDashboard === "function") updateDashboard();
+    }
+
+    // ট্যাব সুইচ করার জন্য (script.js এ কোনো ফাংশন কনফ্লিক্ট করবে না)
+    function showSection(sectionId, btn) {
+        document.querySelectorAll('.tab-section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById(sectionId).classList.add('active');
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+</script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
+<script src="users.js"></script>
+<script src="mydonations.js"></script>
+<script src="chat.js"></script>
+</body>
+</html>
