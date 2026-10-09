@@ -84,6 +84,7 @@ function loadFromGoogleSheet() {
             donations = data.donations || donations;
             expenses = data.expenses || expenses;
             expenseCategories = (data.expenseCategories && data.expenseCategories.length) ? data.expenseCategories : expenseCategories;
+            normalizeMemberPhones();
 
             localStorage.setItem("members", JSON.stringify(members));
             localStorage.setItem("donations", JSON.stringify(donations));
@@ -95,6 +96,29 @@ function loadFromGoogleSheet() {
         })
         .catch(() => setSyncStatus("⚠️ গুগল শিট থেকে ডাটা আনতে সমস্যা হয়েছে"));
 }
+
+// ==========================
+// মোবাইল নম্বর ঠিক করা: বাংলা অঙ্ক -> ইংরেজি, +88/88 বাদ,
+// শুরুর 0 হারিয়ে গেলে (Excel/Google Sheet সংখ্যা বানিয়ে ফেললে) আবার বসানো
+// ==========================
+function cleanPhone(raw) {
+    const map = { "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4", "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9" };
+    let p = String(raw == null ? "" : raw).replace(/[০-৯]/g, d => map[d]).replace(/\D/g, "");
+    if (p.startsWith("880")) p = p.slice(2);
+    if (p.length === 10 && p.startsWith("1")) p = "0" + p;
+    return p;
+}
+function isValidMobile(p) { return /^01\d{9}$/.test(p); }
+
+// আগে থেকে থাকা সদস্যদের নম্বর মেমরিতে ঠিক করা (অ্যাডমিন পরের সেভে এটা স্থায়ী হয়ে যাবে)
+function normalizeMemberPhones() {
+    members.forEach(m => {
+        if (m.phone === undefined || m.phone === null || m.phone === "") { m.phone = ""; return; }
+        const c = cleanPhone(m.phone);
+        m.phone = isValidMobile(c) ? c : String(m.phone).trim();
+    });
+}
+normalizeMemberPhones();
 
 function taka(n) {
     return Number(n).toLocaleString("bn-BD") + " টাকা";
@@ -238,12 +262,12 @@ function clearActivityLog() {
 function isDuplicateMember(name, phone, excludeId) {
 
     const nameL = name.trim().toLowerCase();
-    const phoneT = phone ? phone.trim() : "";
+    const phoneT = cleanPhone(phone);
 
     return members.some(m => {
         if (excludeId !== null && m.id === excludeId) return false;
-        const sameName = m.name.trim().toLowerCase() === nameL;
-        const samePhone = phoneT !== "" && m.phone && m.phone.trim() === phoneT;
+        const sameName = String(m.name).trim().toLowerCase() === nameL;
+        const samePhone = phoneT !== "" && cleanPhone(m.phone) === phoneT;
         return sameName || samePhone;
     });
 }
@@ -251,10 +275,17 @@ function isDuplicateMember(name, phone, excludeId) {
 function addMember() {
 
     const name = document.getElementById("memberName").value.trim();
-    const phone = document.getElementById("memberPhone").value.trim();
+    const phoneRaw = document.getElementById("memberPhone").value.trim();
+    const phone = phoneRaw ? cleanPhone(phoneRaw) : "";
 
     if (!name) {
         showToast("নাম লিখুন", "error");
+        return;
+    }
+
+    // মোবাইল ঐচ্ছিক, কিন্তু দিলে সঠিক হতে হবে (নইলে "আমার অনুদান" মিলবে না)
+    if (phone && !isValidMobile(phone)) {
+        showToast("সঠিক মোবাইল নম্বর দিন (যেমন 01712345678)", "error");
         return;
     }
 
@@ -378,11 +409,14 @@ function importMembersFromExcel() {
 
             let addedCount = 0;
             let duplicateCount = 0;
+            let badPhoneCount = 0;
 
             rows.forEach((row, index) => {
 
                 const name = row[0] ? String(row[0]).trim() : "";
-                const phone = row[1] ? String(row[1]).trim() : "";
+                const phoneRaw = row[1] ? String(row[1]).trim() : "";
+                let phone = phoneRaw ? cleanPhone(phoneRaw) : "";
+                if (phone && !isValidMobile(phone)) { badPhoneCount++; phone = ""; }
 
                 if (!name) return; // খালি সারি বাদ
 
@@ -419,6 +453,9 @@ function importMembersFromExcel() {
             logActivity("এক্সেল থেকে সদস্য আমদানি", addedCount + " জন যোগ হয়েছে, " + duplicateCount + " জন ডুপ্লিকেট বাদ পড়েছে");
 
             let msg = addedCount + " জন সদস্য সফলভাবে যোগ হয়েছে।";
+            if (badPhoneCount > 0) {
+                msg += "\n" + badPhoneCount + " জনের মোবাইল নম্বর সঠিক নয় বলে খালি রাখা হয়েছে, সদস্য তালিকা থেকে এডিট করে দিন।";
+            }
             if (duplicateCount > 0) {
                 msg += "\n" + duplicateCount + " জন ডুপ্লিকেট (আগে থেকেই আছে) হওয়ায় বাদ দেওয়া হয়েছে।";
             }
@@ -444,9 +481,9 @@ function addDonation() {
 
     const amount = Number(document.getElementById("donationAmount").value);
 
-    if (!memberId || amount <= 0) {
+    if (!memberId || !month || !(amount > 0)) {
 
-        showToast("সব তথ্য দিন", "error");
+        showToast("সব তথ্য দিন (সদস্য, মাস ও টাকা)", "error");
 
         return;
 
