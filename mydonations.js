@@ -9,10 +9,13 @@
     function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
     const bn = n => Number(n).toLocaleString("bn-BD");
 
+    // শুরুর 0 হারানো/বাংলা অঙ্ক/+88 থাকলেও মিলবে
+    const fixPhone = p => (typeof cleanPhone === "function" ? cleanPhone(p) : normalizePhone(p));
+
     function myMembers() {
-        const ph = BWF.user && BWF.user.phone;
+        const ph = BWF.user && fixPhone(BWF.user.phone);
         if (!ph || typeof members === "undefined") return [];
-        return members.filter(m => normalizePhone(m.phone) === ph);
+        return members.filter(m => fixPhone(m.phone) === ph);
     }
 
     function monthLabel(m) {
@@ -49,7 +52,7 @@
         ).join("") : '<tr class="empty-state-row"><td colspan="3" class="empty-state-msg">কোনো অনুদান পাওয়া যায়নি</td></tr>';
 
         root.innerHTML =
-            '<div class="my-don-head">👤 ' + esc(ms[0].name) + ' <small>📞 ' + esc(BWF.user.phone) + "</small></div>" +
+            '<div class="my-don-head">👤 ' + ms.map(x => esc(x.name)).join("، ") + ' <small>📞 ' + esc(BWF.user.phone) + "</small></div>" +
             '<div class="cards">' +
               '<div class="card income"><h3>' + (year === "all" ? "মোট অনুদান" : year + " সালের অনুদান") + "</h3><h2>" + taka(total) + "</h2></div>" +
               '<div class="card balance"><h3>সর্বমোট (সব বছর)</h3><h2>' + taka(grand) + "</h2></div>" +
@@ -59,8 +62,9 @@
                 '<option value="all">সব বছর</option>' +
                 years.map(y => '<option value="' + y + '"' + (y === year ? " selected" : "") + ">" + y + "</option>").join("") +
               "</select>" +
-              (ms.length === 1 && typeof printMemberYearlySummary === "function"
-                ? '<button class="view-btn" onclick="printMemberYearlySummary(' + JSON.stringify(ms[0].id) + ')">📅 বাৎসরিক সামারি প্রিন্ট</button>' : "") +
+              (typeof printMemberYearlySummary === "function"
+                ? ms.map(x => '<button class="view-btn" onclick="printMemberYearlySummary(' + JSON.stringify(x.id) + ')">📅 ' +
+                    (ms.length > 1 ? esc(x.name) + " — " : "") + "বাৎসরিক সামারি প্রিন্ট</button>").join("") : "") +
               "<span>মোট এন্ট্রি: " + bn(shown.length) + "টি</span>" +
             "</div>" +
             '<table class="mobile-cards"><thead><tr><th>ধরন</th><th>মাস</th><th>টাকা</th></tr></thead><tbody>' + rows + "</tbody></table>";
